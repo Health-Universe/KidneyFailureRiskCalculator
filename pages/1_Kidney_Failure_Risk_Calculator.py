@@ -1,6 +1,12 @@
+import os
+
+import requests
 import streamlit as st
 import time
 from datetime import datetime
+
+from streamlit_modal import Modal
+
 
 def calculate_kidney_failure_risk_score(eGFR, sex, urine_albumin_to_creatinine_ratio, age, serum_albumin, serum_phosphorus, serum_bicarbonate, serum_calcium):
     # Define point values
@@ -156,6 +162,51 @@ def calculate_age_range(birthdate):
         return '80-89'
     else:
         return '≥90'
+
+import streamlit.components.v1 as components
+
+modal = Modal(
+    "Submit Feedback",
+    key="submit-feedback-modal",
+    #
+    # # Optional
+    # padding=20,  # default value
+    # max_width=744  # default value
+)
+
+
+with st.sidebar:
+    open_modal = st.button("Give Feedback")
+    if open_modal:
+        modal.open()
+
+if modal.is_open():
+    with modal.container():
+        with st.form(key="feedback_form"):
+            action_taken = st.text_input("Action Taken")
+            user_id = st.text_input("User ID")
+            feedback = st.text_area("Feedback (Optional)", placeholder="Leave feedback...")
+            submit_button = st.form_submit_button(label="Submit Feedback")
+
+        if submit_button:
+            data = {
+                "action_taken": action_taken,
+                "user_id": user_id,
+                "feedback": feedback if feedback else None,  # Optional feedback
+            }
+
+            try:
+                response = requests.post(os.environ.get('HU_DSI_FEEDBACK_URL'), json=data)
+
+                # Handle response
+                if response.status_code == 201:
+                    st.success("Feedback submitted successfully!")
+                    modal.close()
+                else:
+                    st.error(f"Failed to submit feedback: {response.status_code} - {response.text}")
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
+
 
 current_date = datetime.today().strftime('%Y-%m-%d')
 birthday = st.text_input("Date of Birth (YYYY-MM-DD)", value=current_date)
